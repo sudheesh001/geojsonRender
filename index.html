@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Geo/Topo Visualizer</title>
+<style>
+body {text-align: center; padding-top: 10px;background-color:whitesmoke;}
+#drop { border: 10px solid #a2a; text-align: center; line-height: 50px; width: 300px; margin: auto; font-size: 40px; display: inline-block;}
+path {
+  fill: none;
+  stroke: #111;
+}
+#output svg{
+	border:5px solid #ccc;
+}
+#footer {
+    position: fixed;
+    width: 100%;
+	clear: both;
+    bottom: 0;
+	padding: 0px;
+    margin: 0;
+    margin-left: -8px;
+    /* ATTENTION! The following elements below 
+    can be set to whatever your heart desires */
+    height: 25px; /* REMEMBER height = padding-bottom */
+    background: #333;
+}
+</style>	
+</head>
+<body>
+
+<h1>GeoJSON/ TopoJSON Visualizer</h1>
+<p>Quickly visualize any GeoJSON / TopoJSON files using this tool, just upload the file using drag and drop or using the file select option</p>
+<div id="footer" style="color:white;">Built Open Source. Note: Might take up some time while processing.</div>
+<div id="drop">
+	Drag &amp; DROP!<br><button onclick="document.querySelector('input').click()">Or Browse and Select</button>
+	<input style="visibility: collapse; width: 0px;" type="file" onchange="upload(this.files[0])">
+</div>
+
+
+<div id="output"></div>
+
+<script src="js/d3.min.js"></script>
+<script src="js/topojson.v1.min.js"></script>
+<script>
+var svg;
+
+    /* Drag drop stuff */
+    window.ondragover = function(e) {e.preventDefault()}
+    window.ondrop = function(e) {
+	    e.preventDefault();
+	    document.getElementById("output").innerHTML = "Reading...Please wait";
+	    var length = e.dataTransfer.items.length;
+	    if(length > 1){
+	    	document.getElementById("output").innerHTML = "Please only drop 1 file.";
+	    } else {
+	    	upload(e.dataTransfer.files[0]);
+	    }
+	}
+
+    /* main upload function */
+    function upload(file) {
+    	console.log(file);
+    	//check if its a json file
+    	if(file.type.match(/application\/json/)){
+	    	oFReader = new FileReader();
+	        oFReader.onloadend = function() {
+
+	        	var obj = JSON.parse(this.result);
+	        	render(obj);
+	        };
+	        oFReader.readAsBinaryString(file);
+        } else {
+        	document.getElementById("output").innerHTML = "This file does not seem to be either topojson or geojson.";
+        }
+    }
+
+	function render(json){
+		var width = 960, height = 500;
+		var projection = d3.geo.mercator();
+
+		var path = d3.geo.path().projection(projection);
+
+		svg = d3.select("#output").append("svg")
+		    .attr("width", width)
+		    .attr("height", height)
+		    .call(d3.behavior.zoom()
+		    .on("zoom", redraw))
+		    .append("g");
+
+		if(json.type == 'Topology'){
+			//draw topojson
+			d3.select("#drop").remove();
+			svg.append("path")
+	      	   .datum(topojson.mesh(json))
+	           .attr("d", path);
+		} else 
+		if(json.type == 'FeatureCollection'){
+			//draw geojson
+			d3.select("#drop").remove();
+			svg.append("path")
+    		   .datum({type: "FeatureCollection", features: json.features})
+    		   .attr("d", path);
+		} else {
+			document.getElementById("output").innerHTML = "This file does not seem to be either topojson or geojson.";
+		}
+	}
+	function redraw() {
+	  var s = d3.event.scale;
+	  var t = d3.event.translate;
+	  svg.style("stroke-width", 1 / s).attr("transform", "translate(" + t + ")scale(" + s + ")");
+	}
+</script>
+</body>
+</html>
